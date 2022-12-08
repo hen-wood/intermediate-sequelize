@@ -45,9 +45,8 @@ router.get("/", async (req, res, next) => {
  */
 router.get("/:id", async (req, res, next) => {
 	let tree;
-
 	try {
-		// Your code here
+		tree = await Tree.findByPk(req.params.id);
 
 		if (tree) {
 			res.json(tree);
@@ -87,9 +86,17 @@ router.get("/:id", async (req, res, next) => {
  */
 router.post("/", async (req, res, next) => {
 	try {
+		const { name, location, height, size } = req.body;
+		const newTree = await Tree.create({
+			tree: name,
+			location,
+			heightFt: height,
+			groundCircumferenceFt: size
+		});
 		res.json({
 			status: "success",
-			message: "Successfully created new tree"
+			message: "Successfully created new tree",
+			data: newTree
 		});
 	} catch (err) {
 		next({
@@ -124,6 +131,9 @@ router.post("/", async (req, res, next) => {
  */
 router.delete("/:id", async (req, res, next) => {
 	try {
+		const treeId = req.params.id;
+		const treeToDelete = await Tree.findOne({ where: { id: treeId } });
+		await treeToDelete.destroy();
 		res.json({
 			status: "success",
 			message: `Successfully removed tree ${req.params.id}`
@@ -175,7 +185,25 @@ router.delete("/:id", async (req, res, next) => {
  */
 router.put("/:id", async (req, res, next) => {
 	try {
-		// Your code here
+		const { id, name, location, height, size } = req.body;
+		const treeToUpdate = await Tree.findByPk(req.params.id);
+		if (id == req.params.id && treeToUpdate) {
+			if (name) treeToUpdate.tree = name;
+			if (location) treeToUpdate.location = location;
+			if (height) treeToUpdate.heightFt = height;
+			if (size) treeToUpdate.groundCircumferenceFt = size;
+			treeToUpdate.save();
+			const resBody = {
+				status: 200,
+				message: "Successfully updated tree",
+				data: treeToUpdate
+			};
+			res.json(resBody);
+		} else if (treeToUpdate) {
+			res.json("Ids must match");
+		} else {
+			res.json("tree not found");
+		}
 	} catch (err) {
 		next({
 			status: "error",
@@ -199,9 +227,21 @@ router.put("/:id", async (req, res, next) => {
  *   - Ordered by the heightFt from tallest to shortest
  */
 router.get("/search/:value", async (req, res, next) => {
-	let trees = [];
-
-	res.json(trees);
+	const { value } = req.params;
+	const trees = await Tree.findAll({
+		attributes: ["heightFt", "tree", "id"],
+		where: {
+			tree: {
+				[Op.like]: `%${value}`
+			}
+		},
+		order: [["heightFt", "DESC"]]
+	});
+	if (trees.length) {
+		res.json(trees);
+	} else {
+		res.json("no trees like that found");
+	}
 });
 
 // Export class - DO NOT MODIFY
